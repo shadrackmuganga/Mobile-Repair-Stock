@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Repair Stock System</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<style>
+  :root {
+    --bg: #aecbff;
+    --bg2: #92b7ff;
+    --panel: #d3e3ff;
+    --text: #071a3d;
+    --muted: #35507f;
+    --border: #7ba6ee;
+    --accent: #1d4ed8;
+    --accent-dark: #1e3a8a;
+    --ok: #0e7a54;
+    --low: #c81e45;
+    --shadow: 0 2px 10px rgba(21,52,120,.22);
+    --head-bg: #b7d0fb;
+    --input: #eef4ff;
+    --secondary: #4b63c9;
+    --secondary-dark: #3b50a8;
+    --sidebar-from: #1e3a8a;
+    --sidebar-to: #2a63d6;
+    --sidebar-text: #eaf2ff;
+    --sidebar-muted: rgba(228,238,255,.72);
+    --sidebar-line: rgba(255,255,255,.22);
+  }
+  body.dark-mode {
+    --bg: #071226;
+    --bg2: #0a1c3e;
+    --panel: #0e2450;
+    --text: #e6efff;
+    --muted: #9db4e0;
+    --border: #29497f;
+    --accent: #3b82f6;
+    --accent-dark: #60a5fa;
+    --ok: #22c55e;
+    --low: #fb7185;
+    --shadow: 0 2px 12px rgba(0,0,0,.5);
+    --head-bg: #10305f;
+    --input: #0f2a5c;
+    --secondary: #2b4b8f;
+    --secondary-dark: #233d75;
+    --sidebar-from: #081735;
+    --sidebar-to: #10326b;
+    --sidebar-text: #dce9ff;
+    --sidebar-muted: rgba(214,229,255,.7);
+    --sidebar-line: rgba(255,255,255,.18);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: linear-gradient(180deg, var(--bg), var(--bg2)) fixed;
+    color: var(--text);
+  }
+  h1, h2, h3 { margin: 0 0 .5rem; }
+  h2 { font-size: 1.05rem; color: var(--accent-dark); }
+  .hidden { display: none !important; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+  }
+  label { display: block; font-size: .8rem; color: var(--muted); margin: .5rem 0 .2rem; }
+  input, select, button, textarea {
+    font: inherit;
+    padding: .5rem .6rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--input);
+    color: var(--text);
+    width: 100%;
+  }
+  button {
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-weight: 600;
+  }
+  button:hover { background: var(--accent-dark); }
+  button.secondary { background: var(--secondary); }
+  button.secondary:hover { background: var(--secondary-dark); }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-end; }
+  .row > * { flex: 1 1 140px; }
+  .row.tight > * { flex: 0 1 auto; }
+  .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th, td { text-align: left; padding: .5rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--accent-dark); background: var(--head-bg); font-weight: 700; }
+  .table-wrap { overflow-x: auto; }
+  .stat { display: flex; flex-direction: column; gap: .25rem; }
+  .stat .value { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: .75rem; color: var(--muted); }
+  .status-low { color: var(--low); font-weight: 700; }
+  .status-ok { color: var(--ok); font-weight: 700; }
+
+  /* Auth */
+  #auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  #auth-screen .panel { width: 100%; max-width: 400px; }
+  .auth-brand { display: flex; justify-content: center; margin-bottom: .5rem; }
+  .auth-brand img { width: 76px; height: 76px; border-radius: 18px; box-shadow: 0 6px 18px rgba(37,99,235,.35); }
+  #auth-message { color: var(--muted); font-size: .85rem; }
+  #demo-account-hint {
+    margin-top: .75rem; font-size: .8rem; color: var(--muted);
+    background: var(--input); padding: .5rem; border-radius: 8px;
+  }
+
+  /* App shell: sidebar + main */
+  #app-shell {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+    align-items: start;
+  }
+  .sidebar {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    background: linear-gradient(165deg, var(--sidebar-from), var(--sidebar-to));
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+    color: var(--sidebar-text);
+  }
+  .brand { display: flex; align-items: center; gap: .6rem; margin-bottom: .85rem; text-decoration: none; color: inherit; }
+  .brand-logo { width: 42px; height: 42px; border-radius: 11px; flex: 0 0 auto; display: block; box-shadow: 0 3px 10px rgba(37,99,235,.35); }
+  .brand-text { font-weight: 800; font-size: 1.05rem; line-height: 1.1; }
+  .brand-text .brand-sub { display: block; font-size: .66rem; color: var(--muted); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-top: .14rem; }
+  .user-card {
+    display: flex; flex-direction: column; gap: .45rem;
+    padding: .6rem .7rem; background: var(--bg); border-radius: 8px; margin-bottom: .5rem;
+  }
+  #current-user-badge { font-size: .82rem; color: var(--text); }
+  #sync-status {
+    align-self: flex-start; font-size: .66rem; padding: .2rem .5rem; border-radius: 999px;
+    border: 1px solid var(--border); text-transform: uppercase; letter-spacing: .03em;
+  }
+  #sync-status.synced { color: var(--ok); border-color: var(--ok); }
+  #sync-status.local-only { color: var(--muted); }
+  .sidebar h3 {
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--muted); margin: 1rem 0 .45rem; padding-bottom: .3rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav { display: flex; flex-direction: column; gap: .1rem; }
+  .nav a {
+    color: var(--text); text-decoration: none; font-size: .85rem;
+    padding: .4rem .55rem; border-radius: 6px; display: block;
+  }
+  .nav a:hover { background: var(--bg); color: var(--accent); }
+  .stack { display: flex; flex-direction: column; gap: .5rem; }
+  .stack .field label { margin-top: 0; }
+  .sidebar button { width: 100%; }
+  /* Sidebar sits on the dominant blue surface: light text + translucent controls */
+  .sidebar h3 { color: var(--sidebar-muted); border-bottom-color: var(--sidebar-line); }
+  .brand-text { color: var(--sidebar-text); }
+  .brand-text .brand-sub { color: var(--sidebar-muted); }
+  .user-card { background: rgba(255,255,255,.12); }
+  #current-user-badge { color: var(--sidebar-text); }
+  #sync-status { border-color: var(--sidebar-line); color: var(--sidebar-text); }
+  #sync-status.synced { color: #b9f6d0; border-color: #b9f6d0; }
+  #sync-status.local-only { color: var(--sidebar-muted); }
+  .sidebar label { color: var(--sidebar-muted); }
+  .sidebar select, .sidebar input {
+    background: #ffffff; color: #0b1e40; border-color: rgba(255,255,255,.55);
+  }
+  .nav a { color: var(--sidebar-text); }
+  .nav a:hover { background: rgba(255,255,255,.18); color: #ffffff; }
+  .nav a.active { background: rgba(255,255,255,.3); color: #ffffff; font-weight: 700; }
+  .sidebar button { background: rgba(255,255,255,.16); color: #ffffff; }
+  .sidebar button:hover { background: rgba(255,255,255,.28); }
+  .sidebar button[type="submit"] { background: #ffffff; color: var(--accent-dark); }
+  .sidebar button[type="submit"]:hover { background: #e6efff; }
+  .main { min-width: 0; }
+  .main > section { scroll-margin-top: 1rem; }
+  .section-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .5rem; flex-wrap: wrap; }
+  .section-head > .row.tight { flex: 0 1 auto; }
+  .muted { color: var(--muted); font-size: .85rem; margin: .25rem 0 .5rem; }
+  .badge-admin { font-size: .7rem; color: var(--muted); border: 1px dashed var(--border); padding: .1rem .4rem; border-radius: 6px; }
+  section { margin-bottom: 1rem; }
+  @media (max-width: 860px) {
+    #app-shell { grid-template-columns: 1fr; }
+    .sidebar { position: static; max-height: none; }
+  }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ===================== AUTH SCREEN ===================== -->
+<div id="auth-screen">
+  <div class="panel">
+    <div class="auth-brand"><img src="logo.svg" alt="Mobile Repair Stock System logo" width="76" height="76"></div>
+    <h1>Mobile Repair Stock System</h1>
+    <p id="auth-message">Loading…</p>
+
+    <form id="login-form">
+      <label for="login-username">Username or email</label>
+      <input id="login-username" name="username" autocomplete="username" required>
+      <label for="login-password">Password</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+      <div style="margin-top:.75rem"><button type="submit">Login</button></div>
+    </form>
+
+    <form id="signup-form" class="hidden">
+      <label for="signup-name">Full name</label>
+      <input id="signup-name" name="fullName" required>
+      <label for="signup-org">Organisation name</label>
+      <input id="signup-org" name="org" required>
+      <label for="signup-username">Username or email</label>
+      <input id="signup-username" name="username" autocomplete="username" required>
+      <label for="signup-contact">Contact (email or phone — required for staff)</label>
+      <input id="signup-contact" name="contact" autocomplete="email" placeholder="name@example.com or +1 555 000 0000">
+      <label for="signup-password">Password</label>
+      <input id="signup-password" name="password" type="password" autocomplete="new-password" required>
+      <label for="signup-role">Role</label>
+      <select id="signup-role" name="role">
+        <option value="staff">Staff</option>
+        <option value="admin">Admin</option>
+      </select>
+      <div style="margin-top:.75rem"><button type="submit">Create account</button></div>
+    </form>
+
+    <div class="row tight" style="margin-top:.5rem">
+      <span></span>
+      <button type="button" id="toggle-auth-mode" class="secondary">Create one</button>
+    </div>
+    <p id="demo-account-hint"></p>
+  </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="app-shell" class="hidden">
+
+  <!-- LEFT: dashboard sidebar with navigation + all system settings -->
+  <aside class="sidebar">
+    <a class="brand" href="#sec-dashboard">
+      <img class="brand-logo" src="logo.svg" alt="" width="42" height="42">
+      <span class="brand-text">Mobile Repair<span class="brand-sub">Stock System</span></span>
+    </a>
+
+    <div class="user-card">
+      <strong id="current-user-badge">Guest</strong>
+      <span id="sync-status" title="Storage mode"></span>
+    </div>
+
+    <h3>Dashboard</h3>
+    <nav class="nav">
+      <a href="#sec-dashboard">Overview &amp; Stats</a>
+      <a href="#sec-inventory">Inventory</a>
+      <a href="#sec-add">Add Item</a>
+      <a href="#sec-stock">Stock Actions</a>
+      <a href="#sec-sales">Sales &amp; Repair</a>
+      <a href="#sec-phone">Phone Trade</a>
+      <a href="#sec-reports">Reports &amp; Filters</a>
+      <a href="#sec-logs">Transactions &amp; Tickets</a>
+      <a href="#sec-printer">Printer</a>
+      <a href="#sec-account">Account Settings</a>
+    </nav>
+
+    <h3 data-i18n="settingsTitle">System Settings</h3>
+    <form id="preferences-form" class="stack">
+      <div class="field">
+        <label for="settings-currency" data-i18n="currencyLabel">Currency</label>
+        <select id="settings-currency"></select>
+      </div>
+      <div class="field">
+        <label for="settings-language" data-i18n="languageLabel">Language</label>
+        <select id="settings-language">
+          <option value="en">English</option>
+          <option value="sw">Kiswahili</option>
+          <option value="es">Español</option>
+          <option value="fr">Français</option>
+        </select>
+      </div>
+      <button type="submit" data-i18n="saveSettings">Save Preferences</button>
+    </form>
+
+    <h3>Display</h3>
+    <div class="stack">
+      <div class="field">
+        <label for="topbar-currency">Quick currency</label>
+        <select id="topbar-currency"></select>
+      </div>
+      <button type="button" id="refresh-btn" class="secondary">Refresh</button>
+      <button type="button" id="theme-toggle-btn" class="secondary">Dark Mode</button>
+    </div>
+
+    <h3>Account &amp; Data</h3>
+    <div class="stack">
+      <div data-admin-only>
+        <button type="button" id="reset-data-btn" class="secondary">Reset demo data</button>
+      </div>
+      <button type="button" id="logout-btn" class="secondary">Logout</button>
+    </div>
+  </aside>
+
+  <!-- RIGHT: dashboard content -->
+  <main class="main">
+
+    <!-- Quick stats -->
+    <section class="panel" id="sec-dashboard">
+      <div class="section-head"><h2 data-i18n="quickStats">Quick Stats</h2></div>
+      <div class="grid">
+        <div class="stat"><span class="value" id="total-items">0</span><span class="label">Total items</span></div>
+        <div class="stat"><span class="value" id="total-inventory">$0.00</span><span class="label">Inventory value</span></div>
+        <div class="stat"><span class="value" id="sales-revenue">$0.00</span><span class="label">Sales revenue</span></div>
+        <div class="stat"><span class="value" id="sales-profit">$0.00</span><span class="label">Sales profit</span></div>
+        <div class="stat"><span class="value" id="phone-sales-revenue">$0.00</span><span class="label">Phone sales revenue</span></div>
+        <div class="stat"><span class="value" id="phone-sales-profit">$0.00</span><span class="label">Phone sales profit</span></div>
+        <div class="stat"><span class="value" id="phone-stock-count">0</span><span class="label">Phones in stock</span></div>
+        <div class="stat"><span class="value" id="phone-inventory-value">$0.00</span><span class="label">Phone inventory value</span></div>
+        <div class="stat"><span class="value" id="open-tickets">0</span><span class="label">Open repair tickets</span></div>
+        <div class="stat"><span class="value" id="low-stock-count">0</span><span class="label">Low-stock items</span></div>
+      </div>
+    </section>
+
+    <!-- Inventory -->
+    <section class="panel hidden" id="sec-inventory">
+      <div class="section-head">
+        <h2 data-i18n="inventory">Inventory</h2>
+        <div class="row tight">
+          <button type="button" id="print-inventory-btn" class="secondary">Print</button>
+          <button type="button" id="export-inventory-csv-btn" class="secondary">Export CSV</button>
+          <button type="button" id="export-inventory-excel-btn" class="secondary">Export to Excel</button>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="search-box">Search</label><input id="search-box" type="search" placeholder="Name or ID"></div>
+        <div><label for="category-filter">Category</label><select id="category-filter"><option value="all">All categories</option></select></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>Category</th><th>Stock</th><th>Min</th><th>Cost</th><th>Selling</th><th>Status</th></tr>
+          </thead>
+          <tbody id="inventory-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="grid">
+      <!-- Add item -->
+      <section class="panel hidden" id="sec-add">
+        <div class="section-head"><h2 data-i18n="addItem">Add Item</h2></div>
+        <form id="item-form">
+          <label for="item-id">Item ID</label>
+          <input id="item-id" list="item-id-options" required>
+          <label for="item-name">Name</label>
+          <input id="item-name" required>
+          <div class="row">
+            <div><label for="item-category">Category</label><input id="item-category" placeholder="General"></div>
+            <div><label for="item-unit">Unit</label><input id="item-unit" placeholder="piece"></div>
+          </div>
+          <div class="row">
+            <div><label for="item-stock">Stock</label><input id="item-stock" type="number" step="1" required></div>
+            <div><label for="item-min-stock">Min stock</label><input id="item-min-stock" type="number" step="1" required></div>
+          </div>
+          <div class="row">
+            <div><label for="item-cost">Cost price</label><input id="item-cost" type="number" step="0.01" required></div>
+            <div><label for="item-selling">Selling price</label><input id="item-selling" type="number" step="0.01" required></div>
+          </div>
+          <div style="margin-top:.75rem"><button type="submit">Add item</button></div>
+        </form>
+      </section>
+
+      <!-- Stock actions -->
+      <section class="panel hidden" id="sec-stock">
+        <div class="section-head"><h2 data-i18n="stockActions">Stock Actions</h2></div>
+        <label for="stock-id">Item ID</label>
+        <input id="stock-id" list="item-id-options">
+        <div class="row">
+          <div><label for="stock-amount">Amount</label><input id="stock-amount" type="number" step="1"></div>
+          <div><label for="stock-reason">Reason</label><input id="stock-reason" placeholder="Supplier delivery"></div>
+        </div>
+        <div class="row tight" style="margin-top:.75rem">
+          <button type="button" id="stock-in-btn">Stock In</button>
+          <button type="button" id="stock-out-btn" class="secondary">Stock Out</button>
+        </div>
+        <div data-admin-only>
+          <label for="delete-item-id">Delete item (admin)</label>
+          <input id="delete-item-id" list="item-id-options">
+          <div style="margin-top:.5rem"><button type="button" id="delete-item-btn" class="secondary">Delete item</button></div>
+        </div>
+      </section>
+
+      <!-- Sales & repair -->
+      <section class="panel hidden" id="sec-sales">
+        <div class="section-head"><h2 data-i18n="salesRepair">Sales &amp; Repair</h2></div>
+
+        <label for="sale-id">Sell item ID</label>
+        <input id="sale-id" list="item-id-options">
+        <div class="row">
+          <div><label for="sale-qty">Qty</label><input id="sale-qty" type="number" step="1"></div>
+          <div><label for="sale-customer">Customer</label><input id="sale-customer" placeholder="Walk-in"></div>
+        </div>
+        <div style="margin-top:.5rem"><button type="button" id="sell-btn">Record sale</button></div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+
+        <label for="repair-customer">Repair customer</label>
+        <input id="repair-customer">
+        <label for="repair-device">Device model</label>
+        <input id="repair-device">
+        <label for="repair-id">Part used (item ID)</label>
+        <input id="repair-id" list="item-id-options">
+        <div class="row">
+          <div><label for="repair-qty">Qty</label><input id="repair-qty" type="number" step="1"></div>
+          <div><label for="repair-problem">Problem</label><input id="repair-problem"></div>
+        </div>
+        <div style="margin-top:.5rem"><button type="button" id="repair-btn">Create repair ticket</button></div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+
+        <label for="repair-complete-id">Complete ticket ID</label>
+        <div class="row tight">
+          <input id="repair-complete-id" style="flex:1 1 160px">
+          <select id="autofill-ticket-id" style="flex:0 1 auto" title="Autofill the ticket ID from a recent ticket"></select>
+        </div>
+        <div class="row tight" style="margin-top:.5rem">
+          <button type="button" id="complete-repair-btn">Complete</button>
+          <button type="button" id="print-repair-btn" class="secondary hidden">Print receipt</button>
+        </div>
+      </section>
+
+      <!-- Phone trade -->
+      <section class="panel hidden" id="sec-phone">
+        <div class="section-head"><h2>Phone Trade</h2></div>
+        <div class="row">
+          <div><label for="phone-brand">Brand</label><input id="phone-brand"></div>
+          <div><label for="phone-model">Model</label><input id="phone-model"></div>
+        </div>
+        <div class="row">
+          <div><label for="phone-condition">Condition</label><input id="phone-condition" value="Grade A"></div>
+          <div><label for="phone-qty">Qty</label><input id="phone-qty" type="number" step="1"></div>
+        </div>
+        <div class="row">
+          <div><label for="phone-buy-price">Buy price</label><input id="phone-buy-price" type="number" step="0.01"></div>
+          <div><label for="phone-sell-price">Sell price</label><input id="phone-sell-price" type="number" step="0.01"></div>
+        </div>
+        <div class="row tight" style="margin-top:.75rem">
+          <button type="button" id="phone-buy-btn">Buy phones</button>
+          <button type="button" id="phone-sell-btn" class="secondary">Sell phones</button>
+          <button type="button" id="print-phone-sale-btn" class="secondary hidden">Print receipt</button>
+        </div>
+        <div class="table-wrap" style="margin-top:1rem">
+          <table>
+            <thead><tr><th>Brand</th><th>Model</th><th>Condition</th><th>Stock</th><th>Cost</th><th>Selling</th></tr></thead>
+            <tbody id="phone-stock-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Reports -->
+    <section class="panel hidden" id="sec-reports">
+      <div class="section-head">
+        <h2 data-i18n="salesReportFilters">Sales Report Filters</h2>
+        <div class="row tight">
+          <button type="button" id="apply-report-filter-btn" class="secondary">Apply</button>
+          <button type="button" id="print-report-btn" class="secondary">Print</button>
+          <button type="button" id="download-report-btn">Download report</button>
+        </div>
+      </div>
+      <div class="row">
+        <div><label for="report-start-date">Start date</label><input id="report-start-date" type="date"></div>
+        <div><label for="report-end-date">End date</label><input id="report-end-date" type="date"></div>
+        <div>
+          <label for="report-user-filter">Staff</label>
+          <select id="report-user-filter"><option value="all">All staff</option></select>
+        </div>
+        <div>
+          <label for="report-type-filter">Type</label>
+          <select id="report-type-filter">
+            <option value="all">All types</option>
+            <option value="sale">Sale</option>
+            <option value="phone-sale">Phone sale</option>
+            <option value="phone-buy">Phone buy</option>
+            <option value="in">Stock in</option>
+            <option value="out">Stock out</option>
+            <option value="repair-use">Repair use</option>
+            <option value="deleted">Deleted</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <div class="grid hidden" id="sec-logs">
+      <section class="panel">
+        <div class="section-head"><h2 data-i18n="transactions">Recent Transactions</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Type</th><th>Item</th><th>Amount</th><th>Customer</th><th>Date</th></tr></thead>
+            <tbody id="transactions-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head"><h2 data-i18n="repairTickets">Repair Tickets</h2></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ticket</th><th>Customer</th><th>Device</th><th>Item</th><th>Qty</th><th>Status</th></tr></thead>
+            <tbody id="repair-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Printer -->
+    <section class="panel hidden" id="sec-printer">
+      <div class="section-head"><h2>Printer</h2></div>
+      <p class="muted" id="printer-status">—</p>
+
+      <div class="field">
+        <label for="printer-type">Print method</label>
+        <select id="printer-type">
+          <option value="system">System dialog (this device)</option>
+          <option value="bluetooth">Bluetooth (ESC/POS receipt printer)</option>
+          <option value="network">Network / WiFi (IP &amp; port)</option>
+        </select>
+      </div>
+
+      <div id="printer-bluetooth-panel">
+        <p class="muted">Connect a Bluetooth receipt printer (requires Chrome/Edge over HTTPS or localhost).</p>
+        <div class="row tight">
+          <button type="button" id="printer-bluetooth-connect" class="secondary">Connect Bluetooth printer</button>
+          <button type="button" id="printer-bluetooth-disconnect" class="secondary">Disconnect</button>
+        </div>
+        <p class="muted" id="printer-bluetooth-name"></p>
+      </div>
+
+      <div id="printer-network-panel" class="row">
+        <div><label for="printer-host">Printer IP / host</label><input id="printer-host" placeholder="192.168.1.50"></div>
+        <div><label for="printer-port">Port</label><input id="printer-port" type="number" value="9100"></div>
+      </div>
+
+      <div class="row tight" style="margin-top:.5rem">
+        <button type="button" id="printer-save-btn">Save printer</button>
+        <button type="button" id="printer-test-btn" class="secondary">Test print</button>
+      </div>
+      <p class="muted">Receipts, the inventory list and the sales report are sent to the selected printer.</p>
+    </section>
+
+    <!-- Account settings -->
+    <div class="grid hidden" id="sec-account">
+      <!-- My account (every user) -->
+      <section class="panel">
+        <div class="section-head"><h2>Account Settings</h2></div>
+        <p class="muted" id="account-summary">—</p>
+        <form id="account-form">
+          <div class="row">
+            <div><label for="account-username">Username / email</label><input id="account-username" disabled></div>
+            <div><label for="account-role">Role</label><input id="account-role" disabled></div>
+          </div>
+          <label for="account-full-name">Full name</label>
+          <input id="account-full-name">
+          <label for="account-contact">Contact (email or phone — required for staff)</label>
+          <input id="account-contact" autocomplete="email" placeholder="name@example.com or +1 555 000 0000">
+          <label for="account-new-password">New password (leave blank to keep current)</label>
+          <input id="account-new-password" type="password" autocomplete="new-password">
+          <div style="margin-top:.75rem"><button type="submit">Save changes</button></div>
+        </form>
+      </section>
+
+      <!-- Staff accounts (admin only) -->
+      <section class="panel" data-admin-only>
+        <div class="section-head"><h2>Staff Accounts</h2></div>
+        <p class="muted">Create logins for the rest of your staff, with an optional contact for each.</p>
+        <form id="add-staff-form">
+          <label for="staff-name">Full name</label>
+          <input id="staff-name" required>
+          <label for="staff-username">Username / email</label>
+          <input id="staff-username" autocomplete="off" required>
+          <div class="row">
+            <div><label for="staff-password">Password</label><input id="staff-password" type="password" autocomplete="new-password" required></div>
+            <div><label for="staff-role">Role</label>
+              <select id="staff-role">
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          <label for="staff-contact">Contact (email or phone)</label>
+          <input id="staff-contact" required placeholder="name@example.com or +1 555 000 0000">
+          <div style="margin-top:.75rem"><button type="submit">Add staff account</button></div>
+        </form>
+        <div class="table-wrap" style="margin-top:1rem">
+          <table>
+            <thead><tr><th>Name</th><th>Username</th><th>Contact</th><th>Role</th></tr></thead>
+            <tbody id="staff-table"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <datalist id="item-id-options"></datalist>
+</div>
+
+<script src="app.js"></script>
+<script>
+// Dashboard navigation: show one section at a time. Only the Overview / Quick
+// Stats is visible on load; the other sections appear when their sidebar link
+// is clicked. All sections stay in the DOM, so app.js keeps rendering into them.
+(function () {
+  var pages = ['sec-dashboard','sec-inventory','sec-add','sec-stock',
+               'sec-sales','sec-phone','sec-reports','sec-logs','sec-printer','sec-account'];
+  var links = [].slice.call(document.querySelectorAll('.nav a'));
+
+  function show(id) {
+    if (pages.indexOf(id) === -1) id = 'sec-dashboard';
+    pages.forEach(function (p) {
+      var el = document.getElementById(p);
+      if (el) el.classList.toggle('hidden', p !== id);
+    });
+    links.forEach(function (a) {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+    });
+  }
+  window.showSection = show;
+
+  links.forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      show(a.getAttribute('href').slice(1));
+      try { history.replaceState(null, '', a.getAttribute('href')); } catch (err) {}
+      window.scrollTo(0, 0);
+    });
+  });
+
+  var hash = location.hash ? location.hash.slice(1) : '';
+  show(pages.indexOf(hash) !== -1 ? hash : 'sec-dashboard');
+})();
+</script>
+</body>
+</html>

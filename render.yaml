@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: mobile-repair-stock
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true

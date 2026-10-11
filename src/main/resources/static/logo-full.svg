@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" width="300" height="64" role="img" aria-label="Mobile Repair Stock System">
+  <defs>
+    <linearGradient id="tileL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="0.55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- icon -->
+  <g transform="translate(0,4) scale(0.875)">
+    <rect x="0" y="0" width="64" height="64" rx="15" fill="url(#tileL)"/>
+    <rect x="17.5" y="7.5" width="29" height="49" rx="6.5" fill="#dbeafe"/>
+    <rect x="20.5" y="13" width="23" height="38" rx="4" fill="#1e40af"/>
+    <rect x="27" y="9.9" width="10" height="1.8" rx="0.9" fill="#93b4ea"/>
+    <rect x="27" y="52.3" width="10" height="1.8" rx="0.9" fill="#93b4ea"/>
+    <g fill="#ffffff">
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(0 32 31)"/>
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(45 32 31)"/>
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(90 32 31)"/>
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(135 32 31)"/>
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(180 32 31)"/>
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(225 32 31)"/>
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(270 32 31)"/>
+      <rect x="30.6" y="22.6" width="2.8" height="4.6" rx="1.2" transform="rotate(315 32 31)"/>
+      <circle cx="32" cy="31" r="5.7"/>
+    </g>
+    <circle cx="32" cy="31" r="2.3" fill="#1e40af"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="70" y="34" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+        font-size="23" font-weight="800" fill="#0f172a">Mobile Repair</text>
+  <text x="71" y="50" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+        font-size="10" font-weight="700" letter-spacing="3.1" fill="#2563eb">STOCK SYSTEM</text>
+</svg>
