@@ -465,6 +465,34 @@ try {
 // API at /api/db/{collection}/{id}. Detection is automatic: if /api/health
 // answers, every read/write below goes through the backend instead of talking
 // to Firestore (or localStorage) directly from the browser.
+//
+// Native shell support: when bundled inside an Android/iOS/desktop shell the
+// page origin is not the backend, so relative "/api/..." URLs must be pointed
+// at an absolute backend base. The shell sets window.__API_BASE__ before this
+// script loads; on the web it is undefined and everything stays relative.
+const API_BASE = (typeof window !== 'undefined' && window.__API_BASE__)
+    ? String(window.__API_BASE__).replace(/\/+$/, '')
+    : '';
+if (API_BASE) {
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+        if (typeof input === 'string' && input.charAt(0) === '/') {
+            input = API_BASE + input;
+        } else if (input && typeof input === 'object' && typeof input.url === 'string' && input.url.charAt(0) === '/') {
+            input = new Request(API_BASE + input.url, input);
+        }
+        return nativeFetch(input, init);
+    };
+    const NativeEventSource = window.EventSource;
+    if (NativeEventSource) {
+        window.EventSource = function (url, config) {
+            if (typeof url === 'string' && url.charAt(0) === '/') url = API_BASE + url;
+            return new NativeEventSource(url, config);
+        };
+        window.EventSource.prototype = NativeEventSource.prototype;
+    }
+}
+
 let apiMode = false;
 
 async function detectApi() {
