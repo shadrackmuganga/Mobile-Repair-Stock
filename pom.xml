@@ -41,6 +41,16 @@
             <artifactId>poi-ooxml</artifactId>
             <version>5.2.5</version>
         </dependency>
+        <!-- Durable storage backend (activated only when app.database.url is set). -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
