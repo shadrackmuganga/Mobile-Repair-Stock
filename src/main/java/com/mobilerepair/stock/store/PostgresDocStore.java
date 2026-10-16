@@ -14,9 +14,11 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Durable {@link DocStore} backed by PostgreSQL (or any JDBC-compatible server).
@@ -32,6 +34,13 @@ import java.util.Properties;
  */
 public class PostgresDocStore implements DocStore {
 
+    private static final Set<String> SSL_MODES =
+            Set.of("disable", "allow", "prefer", "require", "verify-ca", "verify-full");
+    private static final Set<String> PLACEHOLDER_USERS =
+            Set.of("user", "your_real_user", "your_user", "<user>");
+    private static final Set<String> PLACEHOLDER_PASSWORDS =
+            Set.of("password", "your_real_password", "your_password", "<password>");
+
     private final String jdbcUrl;
     private final String username;
     private final String password;
@@ -42,8 +51,8 @@ public class PostgresDocStore implements DocStore {
         this.mapper.findAndRegisterModules();
         this.mapType = mapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, Object.class);
         this.jdbcUrl = toJdbcUrl(connectionUrl);
-        this.username = username != null && !username.isBlank() ? username : extractUser(connectionUrl);
-        this.password = password != null && !password.isBlank() ? password : extractPassword(connectionUrl);
+        this.username = resolveUser(connectionUrl, username);
+        this.password = resolvePassword(connectionUrl, password);
         init();
     }
 
@@ -146,20 +155,96 @@ public class PostgresDocStore implements DocStore {
             throw new DocStoreException("A database URL is required");
         }
         String value = url.trim();
-        if (value.startsWith("jdbc:")) {
-            return value;
+        if (!value.startsWith("jdbc:")) {
+            if (value.startsWith("postgres://")) {
+                value = value.substring("postgres://".length());
+            } else if (value.startsWith("postgresql://")) {
+                value = value.substring("postgresql://".length());
+            }
+            // Drop any user:password@ section; credentials are passed as properties.
+            int at = value.lastIndexOf('@');
+            if (at >= 0) {
+                value = value.substring(at + 1);
+            }
+            value = "jdbc:postgresql://" + value;
         }
-        if (value.startsWith("postgres://")) {
-            value = value.substring("postgres://".length());
-        } else if (value.startsWith("postgresql://")) {
-            value = value.substring("postgresql://".length());
+        return sanitizeSslMode(value);
+    }
+
+    static String resolveUser(String connectionUrl, String username) {
+        if (usable(username) && !PLACEHOLDER_USERS.contains(username.trim().toLowerCase(Locale.ROOT))) {
+            return username.trim();
         }
-        // Drop any user:password@ section; credentials are passed as properties.
-        int at = value.lastIndexOf('@');
-        if (at >= 0) {
-            value = value.substring(at + 1);
+        return extractUser(connectionUrl);
+    }
+
+    static String resolvePassword(String connectionUrl, String password) {
+        if (usable(password) && !PLACEHOLDER_PASSWORDS.contains(password.trim().toLowerCase(Locale.ROOT))) {
+            return password.trim();
         }
-        return "jdbc:postgresql://" + value;
+        return extractPassword(connectionUrl);
+    }
+
+    private static boolean usable(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    static String sanitizeSslMode(String jdbcUrl) {
+        int queryAt = jdbcUrl.indexOf('?');
+        String base = queryAt >= 0 ? jdbcUrl.substring(0, queryAt) : jdbcUrl;
+        String query = queryAt >= 0 ? jdbcUrl.substring(queryAt + 1) : "";
+        Map<String, String> params = new LinkedHashMap<>();
+        if (!query.isBlank()) {
+            for (String part : query.split("&")) {
+                int eq = part.indexOf('=');
+                String key = (eq >= 0 ? part.substring(0, eq) : part).trim();
+                String val = eq >= 0 ? part.substring(eq + 1).trim() : "";
+                if (!key.isEmpty()) {
+                    params.put(key, val);
+                }
+            }
+        }
+        if (params.containsKey("sslmode")) {
+            params.put("sslmode", normalizeSslMode(params.get("sslmode")));
+        } else if (isRenderHost(base)) {
+            params.put("sslmode", "require");
+        }
+        if (params.isEmpty()) {
+            return base;
+        }
+        StringBuilder out = new StringBuilder(base).append('?');
+        boolean first = true;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (!first) {
+                out.append('&');
+            }
+            first = false;
+            out.append(entry.getKey()).append('=').append(entry.getValue());
+        }
+        return out.toString();
+    }
+
+    private static String normalizeSslMode(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "require";
+        }
+        String lower = raw.trim().toLowerCase(Locale.ROOT);
+        for (String mode : SSL_MODES) {
+            if (lower.equals(mode)) {
+                return mode;
+            }
+            if (lower.startsWith(mode)
+                    && lower.length() > mode.length()
+                    && !Character.isLetter(lower.charAt(mode.length()))) {
+                return mode;
+            }
+        }
+        return "require";
+    }
+
+    private static boolean isRenderHost(String jdbcUrl) {
+        String host = jdbcUrl.toLowerCase(Locale.ROOT);
+        return host.contains(".render.com") || host.contains("dpg-");
     }
 
     private static String extractUser(String url) {
