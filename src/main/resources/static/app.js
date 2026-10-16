@@ -86,6 +86,8 @@ class MobileRepairStockSystem {
         this.transactions = [];
         this.repairTickets = [];
         this.deletedItems = {};
+        this.notices = [];
+        this.deletedNotices = {};
     }
 
     logTransaction(entry) {
@@ -854,16 +856,38 @@ function mergeRepairTickets(existing, incoming) {
     return [...byId.values()];
 }
 
+// Notices are append-only announcements keyed by id; the newest copy wins.
+function mergeNotices(existing, incoming) {
+    const byId = new Map();
+    const upsert = notice => {
+        if (!notice || !notice.id) return;
+        const current = byId.get(notice.id);
+        if (!current || (current.createdAt || '') <= (notice.createdAt || '')) byId.set(notice.id, notice);
+    };
+    (existing || []).forEach(upsert);
+    (incoming || []).forEach(upsert);
+    return [...byId.values()];
+}
+
+// A notice present in the tombstone map has been deleted and must never come back.
+function dropDeletedNotices(notices, tombstones) {
+    return (notices || []).filter(notice => !(tombstones && tombstones[notice.id]));
+}
+
 function mergeOrgDataPayload(existing, incoming) {
     const base = existing || {};
     const inc = incoming || {};
     const deletedItems = { ...(base.deletedItems || {}), ...(inc.deletedItems || {}) };
     const items = dropDeletedItems(mergeItemCollections(base.items, inc.items), deletedItems);
+    const deletedNotices = { ...(base.deletedNotices || {}), ...(inc.deletedNotices || {}) };
+    const notices = dropDeletedNotices(mergeNotices(base.notices, inc.notices), deletedNotices);
     return {
         items,
         transactions: mergeTransactions(base.transactions, inc.transactions),
         repairTickets: mergeRepairTickets(base.repairTickets, inc.repairTickets),
         deletedItems,
+        notices,
+        deletedNotices,
         preferences: { ...DEFAULT_PREFERENCES, ...(base.preferences || {}), ...(inc.preferences || {}) },
         updatedAt: new Date().toISOString()
     };
@@ -898,6 +922,8 @@ async function seedOrgData(orgId) {
         transactions: [],
         repairTickets: [],
         deletedItems: {},
+        notices: [],
+        deletedNotices: {},
         preferences: { ...DEFAULT_PREFERENCES },
         updatedAt: new Date().toISOString()
     });
@@ -946,10 +972,13 @@ function subscribeToOrgData(orgId) {
 
 function applyOrgData(data) {
     const tombstones = (data.deletedItems && typeof data.deletedItems === 'object') ? data.deletedItems : {};
+    const noticeTombstones = (data.deletedNotices && typeof data.deletedNotices === 'object') ? data.deletedNotices : {};
     system.items = new Map();
     system.transactions = Array.isArray(data.transactions) ? data.transactions : [];
     system.repairTickets = Array.isArray(data.repairTickets) ? data.repairTickets : [];
     system.deletedItems = tombstones;
+    system.notices = dropDeletedNotices(mergeNotices([], data.notices), noticeTombstones);
+    system.deletedNotices = noticeTombstones;
     (Array.isArray(data.items) ? data.items : []).forEach(item => {
         if (!item || !item.id) return;
         if (system.items.has(item.id)) return;
@@ -972,6 +1001,8 @@ async function loadOrgState(orgId = getCurrentOrgId()) {
     system.transactions = [];
     system.repairTickets = [];
     system.deletedItems = {};
+    system.notices = [];
+    system.deletedNotices = {};
     currentPreferences = { ...DEFAULT_PREFERENCES };
     if (!orgId) return;
 
@@ -988,6 +1019,8 @@ async function saveOrgState(orgId = getCurrentOrgId()) {
         transactions: system.transactions,
         repairTickets: system.repairTickets,
         deletedItems: system.deletedItems,
+        notices: system.notices,
+        deletedNotices: system.deletedNotices,
         preferences: currentPreferences
     });
 }
@@ -1471,6 +1504,184 @@ function renderRepairTickets() {
   `).join('') || '<tr><td colspan="6">No repair tickets yet.</td></tr>';
 }
 
+// ---- Notices & notifications -------------------------------------------------
+// Notices are org-wide announcements stored in the shared orgData document, so
+// every admin and staff account in the organisation sees the same feed live.
+// Which notices a given person has already read is kept per-account on the
+// device (localStorage), so the unread badge is meaningful without needing a
+// write to the shared record every time someone opens the list.
+function noticeSortKey(notice) {
+    return notice && notice.createdAt ? notice.createdAt : '';
+}
+
+function sortedNotices() {
+    return [...(system.notices || [])].sort((a, b) =>
+        noticeSortKey(b).localeCompare(noticeSortKey(a)));
+}
+
+const readNoticesPrefix = 'mobile-repair-read-notices';
+
+function getReadNoticeIds() {
+    try {
+        const raw = localStorage.getItem(`${readNoticesPrefix}:${getCurrentUserKey() || 'guest'}`);
+        const ids = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(ids) ? ids : []);
+    } catch {
+        return new Set();
+    }
+}
+
+function saveReadNoticeIds(ids) {
+    try {
+        localStorage.setItem(`${readNoticesPrefix}:${getCurrentUserKey() || 'guest'}`,
+            JSON.stringify([...ids]));
+    } catch { /* storage unavailable — read state just won't persist */ }
+}
+
+function markNoticeRead(id) {
+    if (!id) return;
+    const ids = getReadNoticeIds();
+    if (!ids.has(id)) {
+        ids.add(id);
+        saveReadNoticeIds(ids);
+    }
+}
+
+function markAllNoticesRead() {
+    saveReadNoticeIds(new Set(sortedNotices().map(notice => notice.id)));
+}
+
+function unreadNotices() {
+    const read = getReadNoticeIds();
+    return sortedNotices().filter(notice => !read.has(notice.id));
+}
+
+function noticePriority(notice) {
+    const priority = (notice && notice.priority) || 'normal';
+    return ['normal', 'important', 'urgent'].includes(priority) ? priority : 'normal';
+}
+
+async function renderNotices() {
+    const list = document.getElementById('notices-list');
+    if (!list) return;
+    const isAdmin = await isAdminUser();
+    const notices = sortedNotices();
+    if (!notices.length) {
+        list.innerHTML = '<p class="muted">No notices yet. Admins can post one using the form above.</p>';
+        return;
+    }
+    const read = getReadNoticeIds();
+    list.innerHTML = notices.map(notice => {
+        const priority = noticePriority(notice);
+        return `
+    <article class="notice notice-${priority}${read.has(notice.id) ? '' : ' notice-unread'}">
+      <div class="notice-head">
+        <strong>${escapeHtml(notice.title || 'Notice')}</strong>
+        <span class="notice-priority">${escapeHtml(priority)}</span>
+      </div>
+      <p class="notice-body">${escapeHtml(notice.body || '')}</p>
+      <div class="notice-meta">${escapeHtml(notice.author || 'Admin')} · ${new Date(notice.createdAt).toLocaleString()}</div>
+      ${isAdmin ? `<div class="notice-actions"><button type="button" class="secondary notice-del" data-id="${escapeHtml(notice.id)}">Delete</button></div>` : ''}
+    </article>`;
+    }).join('');
+}
+
+async function renderNotifications() {
+    const countEl = document.getElementById('notif-count');
+    const listEl = document.getElementById('notif-list');
+    if (!countEl || !listEl) return;
+
+    const notices = sortedNotices();
+    const read = getReadNoticeIds();
+    const unread = notices.filter(notice => !read.has(notice.id));
+
+    countEl.textContent = unread.length > 99 ? '99+' : String(unread.length);
+    countEl.classList.toggle('hidden', unread.length === 0);
+
+    if (!notices.length) {
+        listEl.innerHTML = '<p class="muted">No notifications yet.</p>';
+        return;
+    }
+    listEl.innerHTML = notices.slice(0, 25).map(notice => `
+    <button type="button" class="notif-item${read.has(notice.id) ? '' : ' notif-unread'}" data-id="${escapeHtml(notice.id)}">
+      <span class="notif-item-title">${escapeHtml(notice.title || 'Notice')}</span>
+      <span class="notif-item-time">${escapeHtml(notice.author || 'Admin')} · ${new Date(notice.createdAt).toLocaleString()}</span>
+    </button>`).join('');
+}
+
+function closeNotificationPanel() {
+    const panel = document.getElementById('notif-panel');
+    if (panel) panel.classList.add('hidden');
+}
+
+async function toggleNotificationPanel() {
+    const panel = document.getElementById('notif-panel');
+    if (!panel) return;
+    const willOpen = panel.classList.contains('hidden');
+    panel.classList.toggle('hidden', !willOpen);
+    if (willOpen) {
+        await renderNotifications();
+    }
+}
+
+async function handleMarkAllNoticesRead() {
+    markAllNoticesRead();
+    await renderNotifications();
+    await renderNotices();
+}
+
+async function handlePostNotice(event) {
+    event.preventDefault();
+    if (!(await isAdminUser())) {
+        alert('Only admin users can post notices.');
+        return;
+    }
+    const titleEl = document.getElementById('notice-title');
+    const bodyEl = document.getElementById('notice-body');
+    const priorityEl = document.getElementById('notice-priority');
+    const title = titleEl.value.trim();
+    const body = bodyEl.value.trim();
+    const priority = priorityEl ? noticePriority({ priority: priorityEl.value }) : 'normal';
+
+    if (!title || !body) {
+        alert('Please add both a title and a message.');
+        return;
+    }
+
+    const profile = await getCurrentUserProfile();
+    const notice = {
+        id: `notice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title,
+        body,
+        priority,
+        author: (profile && (profile.fullName || profile.username)) || 'Admin',
+        authorRole: (profile && profile.role) || 'admin',
+        createdAt: new Date().toISOString()
+    };
+
+    system.notices = mergeNotices(system.notices, [notice]);
+    await persistAndRefresh();
+    // The author has obviously seen their own notice.
+    markNoticeRead(notice.id);
+    await renderNotifications();
+    document.getElementById('notice-form').reset();
+}
+
+async function handleDeleteNotice(id) {
+    if (!(await isAdminUser())) {
+        alert('Only admin users can delete notices.');
+        return;
+    }
+    const notice = (system.notices || []).find(item => item.id === id);
+    const label = notice && notice.title ? `"${notice.title}"` : 'this notice';
+    if (!window.confirm(`Delete ${label} for everyone in your organisation?`)) return;
+
+    system.notices = (system.notices || []).filter(item => item.id !== id);
+    system.deletedNotices = { ...(system.deletedNotices || {}), [id]: new Date().toISOString() };
+    await persistAndRefresh();
+    await renderNotifications();
+}
+
 function renderStats() {
     const allItems = system.listItems();
     const phoneItems = allItems.filter(item => item.category === 'Phone');
@@ -1517,6 +1728,8 @@ async function refreshUI() {
     renderStats();
     await populateAccountSettings();
     await renderStaffList();
+    await renderNotices();
+    await renderNotifications();
 }
 
 // Used by handlers that actually change inventory/transactions/tickets:
@@ -2676,6 +2889,8 @@ async function resetDemoData() {
         transactions: [],
         repairTickets: [],
         deletedItems: {},
+        notices: [],
+        deletedNotices: {},
         preferences: { ...DEFAULT_PREFERENCES },
         updatedAt: new Date().toISOString()
     });
@@ -2779,6 +2994,37 @@ async function init() {
     document.getElementById('printer-bluetooth-disconnect').addEventListener('click', handleBluetoothDisconnect);
     document.getElementById('account-form').addEventListener('submit', handleSaveAccountSettings);
     document.getElementById('add-staff-form').addEventListener('submit', handleAddStaffAccount);
+
+    const noticeForm = document.getElementById('notice-form');
+    if (noticeForm) noticeForm.addEventListener('submit', handlePostNotice);
+    const notifBell = document.getElementById('notif-bell');
+    if (notifBell) notifBell.addEventListener('click', event => { event.stopPropagation(); toggleNotificationPanel(); });
+    const notifMarkAll = document.getElementById('notif-mark-all');
+    if (notifMarkAll) notifMarkAll.addEventListener('click', event => { event.stopPropagation(); handleMarkAllNoticesRead(); });
+    const noticesMarkAll = document.getElementById('notices-mark-all');
+    if (noticesMarkAll) noticesMarkAll.addEventListener('click', handleMarkAllNoticesRead);
+    const notifList = document.getElementById('notif-list');
+    if (notifList) notifList.addEventListener('click', event => {
+        const item = event.target.closest('.notif-item');
+        if (!item) return;
+        markNoticeRead(item.dataset.id);
+        closeNotificationPanel();
+        gotoSection('sec-notices');
+        renderNotifications();
+        renderNotices();
+    });
+    const noticesList = document.getElementById('notices-list');
+    if (noticesList) noticesList.addEventListener('click', event => {
+        const del = event.target.closest('.notice-del');
+        if (del) handleDeleteNotice(del.dataset.id);
+    });
+    document.addEventListener('click', event => {
+        const panel = document.getElementById('notif-panel');
+        const bell = document.getElementById('notif-bell');
+        if (!panel || panel.classList.contains('hidden')) return;
+        if (bell && bell.contains(event.target)) return;
+        if (!panel.contains(event.target)) closeNotificationPanel();
+    });
 
     // Show the auth screen right away and let the person see the page is
     // alive, rather than leaving it blank while account setup (which now
