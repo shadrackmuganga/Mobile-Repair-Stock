@@ -769,14 +769,19 @@
   show(pages.indexOf(hash) !== -1 ? hash : 'sec-dashboard');
 })();
 
-// Menu bar (hamburger) replaces the "Dashboard" heading. It toggles the nav
-// list open/closed; the Overview & Stats section stays visible either way.
+// Menu bar (hamburger) replaces the "Dashboard" heading. The nav list is
+// closed by default and opens only when the button is clicked. The Overview &
+// Stats section stays visible either way.
 (function () {
   var shell = document.getElementById('app-shell');
   var btn = document.getElementById('menu-toggle');
   if (!shell || !btn) return;
+  var collapsed = true;
+  shell.classList.toggle('nav-collapsed', collapsed);
+  btn.setAttribute('aria-expanded', String(!collapsed));
   btn.addEventListener('click', function () {
-    var collapsed = shell.classList.toggle('nav-collapsed');
+    collapsed = !collapsed;
+    shell.classList.toggle('nav-collapsed', collapsed);
     btn.setAttribute('aria-expanded', String(!collapsed));
   });
 })();
