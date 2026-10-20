@@ -197,12 +197,12 @@
   /* Menu bar (hamburger) replacing the "Dashboard" heading: opens/closes the nav */
   .brand-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .85rem; }
   .brand-row .brand { margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
-  .nav-head { margin: 1rem 0 .45rem; padding-bottom: .3rem; border-bottom: 1px solid var(--sidebar-line); }
+  .nav-head { margin: 1rem 0 .45rem; display: flex; }
   .menu-toggle {
     display: inline-flex; align-items: center; justify-content: center;
     width: 22px; height: 22px; border-radius: 6px;
     color: var(--sidebar-text); background: rgba(255,255,255,.16);
-    border: 1px solid var(--sidebar-line); padding: 0; cursor: pointer;
+    border: 1px solid var(--sidebar-line); padding: 0; cursor: pointer; flex: 0 0 auto;
   }
   .menu-toggle:hover { background: rgba(255,255,255,.3); color: #ffffff; }
   /* Always show the hamburger icon, whether the nav is open or closed */
