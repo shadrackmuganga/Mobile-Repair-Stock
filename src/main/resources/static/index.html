@@ -193,6 +193,23 @@
   .sidebar button[type="submit"]:hover { background: #e6efff; }
   .main { min-width: 0; }
   .main > section { scroll-margin-top: 1rem; }
+
+  /* Menu bar (hamburger) at the top-left corner: opens/closes the dashboard sidebar */
+  .topbar { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+  .menu-toggle {
+    width: 42px; height: 42px; border-radius: 10px; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(165deg, var(--sidebar-from), var(--sidebar-to));
+    color: #ffffff; border: 1px solid rgba(0,0,0,.08); cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .menu-toggle:hover { filter: brightness(1.08); }
+  .menu-toggle .icon-close { display: none; }
+  #app-shell.nav-collapsed .menu-toggle .icon-open { display: none; }
+  #app-shell.nav-collapsed .menu-toggle .icon-close { display: inline-flex; }
+  /* Collapsed state: hide the sidebar, main content takes full width */
+  #app-shell.nav-collapsed { grid-template-columns: minmax(0, 1fr); }
+  #app-shell.nav-collapsed .sidebar { display: none; }
   .section-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .5rem; flex-wrap: wrap; }
   .section-head > .row.tight { flex: 0 1 auto; }
   .muted { color: var(--muted); font-size: .85rem; margin: .25rem 0 .5rem; }
@@ -300,7 +317,7 @@
 <div id="app-shell" class="hidden">
 
   <!-- LEFT: dashboard sidebar with navigation + all system settings -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="app-sidebar">
     <a class="brand" href="#sec-dashboard">
       <img class="brand-logo" src="logo.svg" alt="" width="42" height="42">
       <span class="brand-text">Mobile Repair<span class="brand-sub">Stock System</span></span>
@@ -377,6 +394,15 @@
 
   <!-- RIGHT: dashboard content -->
   <main class="main">
+
+    <!-- Top-left menubar: opens/closes the dashboard sidebar. Overview & Stats stays open. -->
+    <div class="topbar">
+      <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Toggle dashboard menu" aria-expanded="true" aria-controls="app-sidebar">
+        <svg class="icon-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <span class="badge-admin">Menu</span>
+    </div>
 
     <!-- Quick stats -->
     <section class="panel" id="sec-dashboard">
@@ -743,6 +769,18 @@
 
   var hash = location.hash ? location.hash.slice(1) : '';
   show(pages.indexOf(hash) !== -1 ? hash : 'sec-dashboard');
+})();
+
+// Top-left menubar: toggle the dashboard sidebar open/closed. Overview & Stats
+// stays visible either way — toggling only collapses the nav panel.
+(function () {
+  var shell = document.getElementById('app-shell');
+  var btn = document.getElementById('menu-toggle');
+  if (!shell || !btn) return;
+  btn.addEventListener('click', function () {
+    var collapsed = shell.classList.toggle('nav-collapsed');
+    btn.setAttribute('aria-expanded', String(!collapsed));
+  });
 })();
 </script>
 </body>
