@@ -195,21 +195,32 @@
   .main > section { scroll-margin-top: 1rem; }
 
   /* Menu bar (hamburger) at the top-left corner: opens/closes the dashboard sidebar */
-  .topbar { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+  .brand-row { display: flex; align-items: center; gap: .5rem; margin-bottom: .85rem; }
+  .brand-row .brand { margin-bottom: 0; flex: 1 1 auto; min-width: 0; }
   .menu-toggle {
-    width: 42px; height: 42px; border-radius: 10px; flex: 0 0 auto;
+    width: 38px; height: 38px; border-radius: 10px; flex: 0 0 auto;
     display: inline-flex; align-items: center; justify-content: center;
-    background: linear-gradient(165deg, var(--sidebar-from), var(--sidebar-to));
-    color: #ffffff; border: 1px solid rgba(0,0,0,.08); cursor: pointer;
-    box-shadow: var(--shadow);
+    background: rgba(255,255,255,.16); color: #ffffff;
+    border: 1px solid var(--sidebar-line); cursor: pointer;
   }
-  .menu-toggle:hover { filter: brightness(1.08); }
+  .menu-toggle:hover { background: rgba(255,255,255,.3); }
   .menu-toggle .icon-close { display: none; }
   #app-shell.nav-collapsed .menu-toggle .icon-open { display: none; }
   #app-shell.nav-collapsed .menu-toggle .icon-close { display: inline-flex; }
   /* Collapsed state: hide the sidebar, main content takes full width */
   #app-shell.nav-collapsed { grid-template-columns: minmax(0, 1fr); }
   #app-shell.nav-collapsed .sidebar { display: none; }
+  /* When collapsed, a floating reopen button appears at the top-left corner */
+  #menu-reopen {
+    position: fixed; top: 1rem; left: 1rem; z-index: 40;
+    width: 42px; height: 42px; border-radius: 10px; cursor: pointer;
+    align-items: center; justify-content: center;
+    background: linear-gradient(165deg, var(--sidebar-from), var(--sidebar-to));
+    color: #ffffff; border: 1px solid rgba(0,0,0,.08); box-shadow: var(--shadow);
+  }
+  #menu-reopen:hover { filter: brightness(1.08); }
+  #app-shell:not(.nav-collapsed) #menu-reopen { display: none; }
+  #app-shell.nav-collapsed #menu-reopen { display: inline-flex; }
   .section-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .5rem; flex-wrap: wrap; }
   .section-head > .row.tight { flex: 0 1 auto; }
   .muted { color: var(--muted); font-size: .85rem; margin: .25rem 0 .5rem; }
@@ -316,12 +327,23 @@
 <!-- ===================== APP SHELL ===================== -->
 <div id="app-shell" class="hidden">
 
+  <!-- Floating menu button shown only while the sidebar is collapsed -->
+  <button type="button" id="menu-reopen" aria-label="Open dashboard menu" aria-controls="app-sidebar">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
   <!-- LEFT: dashboard sidebar with navigation + all system settings -->
   <aside class="sidebar" id="app-sidebar">
-    <a class="brand" href="#sec-dashboard">
-      <img class="brand-logo" src="logo.svg" alt="" width="42" height="42">
-      <span class="brand-text">Mobile Repair<span class="brand-sub">Stock System</span></span>
-    </a>
+    <div class="brand-row">
+      <a class="brand" href="#sec-dashboard">
+        <img class="brand-logo" src="logo.svg" alt="" width="42" height="42">
+        <span class="brand-text">Mobile Repair<span class="brand-sub">Stock System</span></span>
+      </a>
+      <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Toggle dashboard menu" aria-expanded="true" aria-controls="app-sidebar">
+        <svg class="icon-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
 
     <div class="user-card">
       <strong id="current-user-badge">Guest</strong>
@@ -394,15 +416,6 @@
 
   <!-- RIGHT: dashboard content -->
   <main class="main">
-
-    <!-- Top-left menubar: opens/closes the dashboard sidebar. Overview & Stats stays open. -->
-    <div class="topbar">
-      <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Toggle dashboard menu" aria-expanded="true" aria-controls="app-sidebar">
-        <svg class="icon-open" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        <svg class="icon-close" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-      <span class="badge-admin">Menu</span>
-    </div>
 
     <!-- Quick stats -->
     <section class="panel" id="sec-dashboard">
@@ -776,11 +789,19 @@
 (function () {
   var shell = document.getElementById('app-shell');
   var btn = document.getElementById('menu-toggle');
+  var reopen = document.getElementById('menu-reopen');
   if (!shell || !btn) return;
-  btn.addEventListener('click', function () {
-    var collapsed = shell.classList.toggle('nav-collapsed');
+
+  function setCollapsed(collapsed) {
+    shell.classList.toggle('nav-collapsed', collapsed);
     btn.setAttribute('aria-expanded', String(!collapsed));
+  }
+  btn.addEventListener('click', function () {
+    setCollapsed(!shell.classList.contains('nav-collapsed'));
   });
+  if (reopen) {
+    reopen.addEventListener('click', function () { setCollapsed(false); });
+  }
 })();
 </script>
 </body>
