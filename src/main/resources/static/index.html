@@ -200,14 +200,13 @@
   .nav-head { margin: 1rem 0 .45rem; padding-bottom: .3rem; border-bottom: 1px solid var(--sidebar-line); }
   .menu-toggle {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; border-radius: 7px;
+    width: 22px; height: 22px; border-radius: 6px;
     color: var(--sidebar-text); background: rgba(255,255,255,.16);
     border: 1px solid var(--sidebar-line); padding: 0; cursor: pointer;
   }
   .menu-toggle:hover { background: rgba(255,255,255,.3); color: #ffffff; }
+  /* Always show the hamburger icon, whether the nav is open or closed */
   .menu-toggle .icon-close { display: none; }
-  #app-shell.nav-collapsed .menu-toggle .icon-open { display: none; }
-  #app-shell.nav-collapsed .menu-toggle .icon-close { display: inline-flex; }
   /* Collapsed state: hide the nav list (Overview & Stats section stays visible) */
   #app-shell.nav-collapsed #dashboard-nav { display: none; }
   .section-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .5rem; flex-wrap: wrap; }
@@ -344,8 +343,7 @@
 
     <h3 class="nav-head">
       <button type="button" id="menu-toggle" class="menu-toggle" aria-label="Toggle dashboard menu" aria-expanded="true" aria-controls="dashboard-nav" title="Dashboard">
-        <svg class="icon-open" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        <svg class="icon-close" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
     </h3>
     <nav class="nav" id="dashboard-nav">
